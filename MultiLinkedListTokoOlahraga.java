@@ -41,20 +41,23 @@ class ProductNode {
 
 class TransactionNode {
     Date date;
-    String type; // "purchase" or "rental"
-    ProductNode productHead; // Barang dalam transaksi
-    Map<String, Integer> quantities; // Nama produk dan jumlahnya
+    String type; // untuk purchase atau rental
+    ProductNode productHead; // Barang di transaksi
+    Map<String, Integer> quantities;
+    Map<String, Double> productPrice;
     TransactionNode next;
-    double payment, paidAmount; // Jumlah yang dibayar
-    double change, changeAmount; // Kembalian
+    double payment, paidAmount;
+    double change, changeAmount;
     Date returnDate;
     int duration;
     boolean isReturned = false;
+    UserNode allUser;
 
     public TransactionNode(String type) {
         this.date = new Date();
         this.type = type;
         this.quantities = new HashMap<>();
+        this.productPrice = new HashMap<>();
     }
 
     public double getTotalAmount() {
@@ -67,7 +70,7 @@ class TransactionNode {
 
             if (type.equals("rental")) {
                 itemPrice *= 0.2; // Harga 20% dari harga asli
-                itemPrice *= duration; // Kalikan dengan durasi sewa
+                itemPrice *= duration;
             }
 
             total += itemPrice * quantity;
@@ -87,7 +90,6 @@ class TransactionNode {
             current = current.next;
         }
 
-        // Jika produk tidak ditemukan, kembalikan harga 0
         return 0;
     }
 
@@ -107,9 +109,9 @@ class TransactionNode {
 
 class UserNode {
     String username;
-    String password; // Ideally encrypted
-    String role; // admin or user
-    TransactionNode transactionHead; // Linked list of transactions
+    String password;
+    String role;
+    TransactionNode transactionHead;
     UserNode next;
 
     public UserNode(String username, String password, String role) {
@@ -147,10 +149,10 @@ public class MultiLinkedListTokoOlahraga {
             System.out.println("3. Keluar");
             System.out.print("Pilih menu: ");
 
-            if (!scanner.hasNextInt()) { // Jika input bukan angka
+            if (!scanner.hasNextInt()) {
                 System.out.println("Input tidak valid. Harap masukkan angka.");
-                scanner.nextLine(); // Konsumsi input yang salah
-                continue; // Kembali ke menu
+                scanner.nextLine();
+                continue;
             }
 
             int choice = scanner.nextInt();
@@ -175,20 +177,16 @@ public class MultiLinkedListTokoOlahraga {
     }
 
     private static void initializeData() {
-        // Add admin user
         userHead = new UserNode("admin", "1234", "admin");
 
-        // Add kategori
         kategoriHead = new KategoriNode(1, "Sepatu", "Berbagai macam sepatu olahraga");
         kategoriHead.next = new KategoriNode(2, "Pakaian", "Jersey, kaos, dan lainnya");
         kategoriHead.next.next = new KategoriNode(3, "Perlengkapan", "Bola, raket, dll");
 
-        // Tambahkan produk dengan kategori
         KategoriNode sepatuCategory = getKategoriByIndex(1);
         KategoriNode pakaianCategory = getKategoriByIndex(2);
         KategoriNode perlengkapanCategory = getKategoriByIndex(3);
 
-        // Add sample products
         productHead = new ProductNode("Sepatu Olahraga", 500000, 10, sepatuCategory);
         productHead.next = new ProductNode("Bola Basket", 300000, 5, perlengkapanCategory);
         productHead.next.next = new ProductNode("Jersey", 200000, 20, pakaianCategory);
@@ -206,7 +204,7 @@ public class MultiLinkedListTokoOlahraga {
         if (user != null) {
             System.out.println("Login berhasil! Selamat datang, " + user.username + " (" + user.role + ")");
             if (user.role.equals("admin")) {
-                adminMenu(scanner);
+                adminMenu(scanner, user);
             } else {
                 userMenu(scanner, user);
             }
@@ -216,17 +214,36 @@ public class MultiLinkedListTokoOlahraga {
     }
 
     private static void register(Scanner scanner) {
-        System.out.print("Masukkan username baru: ");
-        String username = scanner.nextLine();
+        while (true) {
+            System.out.print("Masukkan username baru: ");
+            String username = scanner.nextLine();
 
-        System.out.print("Masukkan password baru: ");
-        String password = scanner.nextLine();
+            if (isUsernameExists(username)) {
+                System.out.println("Username sudah ada. Silakan coba username lain.");
+                continue;
+            }
 
-        UserNode newUser = new UserNode(username, password, "user");
-        newUser.next = userHead;
-        userHead = newUser;
+            System.out.print("Masukkan password baru: ");
+            String password = scanner.nextLine();
 
-        System.out.println("Registrasi berhasil! Silakan login dengan akun baru Anda.");
+            UserNode newUser = new UserNode(username, password, "user");
+            newUser.next = userHead;
+            userHead = newUser;
+
+            System.out.println("Registrasi berhasil! Silakan login dengan akun baru Anda.");
+            break;
+        }
+    }
+
+    private static boolean isUsernameExists(String username) {
+        UserNode current = userHead;
+        while (current != null) {
+            if (current.username.equals(username)) {
+                return true;
+            }
+            current = current.next;
+        }
+        return false;
     }
 
     private static UserNode authenticateUser(String username, String password) {
@@ -240,7 +257,7 @@ public class MultiLinkedListTokoOlahraga {
         return null;
     }
 
-    private static void adminMenu(Scanner scanner) {
+    private static void adminMenu(Scanner scanner, UserNode users) {
         boolean running = true;
 
         while (running) {
@@ -248,18 +265,19 @@ public class MultiLinkedListTokoOlahraga {
             System.out.println("1. Lihat Semua User");
             System.out.println("2. Lihat Semua Kategori");
             System.out.println("3. Lihat Semua Produk");
-            System.out.println("4. Lihat Semua Transaksi");
-            System.out.println("5. Keluar");
+            System.out.println("4. Lihat Daftar Sewa Produk");
+            System.out.println("5. Lihat Semua Transaksi");
+            System.out.println("6. Keluar");
             System.out.print("Pilih menu: ");
 
-            if (!scanner.hasNextInt()) { // Jika input bukan angka
+            if (!scanner.hasNextInt()) {
                 System.out.println("Input tidak valid. Harap masukkan angka.");
-                scanner.nextLine(); // Konsumsi input yang salah
-                continue; // Kembali ke menu
+                scanner.nextLine();
+                continue;
             }
 
             int choice = scanner.nextInt();
-            scanner.nextLine(); // Consume newline
+            scanner.nextLine();
 
             switch (choice) {
                 case 1:
@@ -274,9 +292,12 @@ public class MultiLinkedListTokoOlahraga {
                     menuProducts(scanner);
                     break;
                 case 4:
-                    viewAllTransactions();
+                    manageAllRentals(scanner);
                     break;
                 case 5:
+                    viewAllTransactions();
+                    break;
+                case 6:
                     running = false;
                     break;
                 default:
@@ -298,14 +319,14 @@ public class MultiLinkedListTokoOlahraga {
             System.out.println("6. Keluar");
             System.out.print("Pilih menu: ");
 
-            if (!scanner.hasNextInt()) { // Jika input bukan angka
+            if (!scanner.hasNextInt()) {
                 System.out.println("Input tidak valid. Harap masukkan angka.");
-                scanner.nextLine(); // Konsumsi input yang salah
-                continue; // Kembali ke menu
+                scanner.nextLine();
+                continue;
             }
 
             int choice = scanner.nextInt();
-            scanner.nextLine(); // Consume newline
+            scanner.nextLine();
 
             switch (choice) {
                 case 1:
@@ -349,11 +370,11 @@ public class MultiLinkedListTokoOlahraga {
         KategoriNode current = kategoriHead;
         while (current != null) {
             if (current.id == id) {
-                return true; // ID kategori ditemukan
+                return true;
             }
             current = current.next;
         }
-        return false; // ID kategori tidak ditemukan
+        return false;
     }
 
     private static void addKategori(Scanner scanner) {
@@ -382,10 +403,8 @@ public class MultiLinkedListTokoOlahraga {
         System.out.print("Masukkan deskripsi kategori: ");
         String description = scanner.nextLine();
 
-        // Buat node kategori baru
         KategoriNode newCategory = new KategoriNode(id, name, description);
 
-        // Tambahkan kategori ke awal linked list
         newCategory.next = kategoriHead;
         kategoriHead = newCategory;
 
@@ -396,11 +415,11 @@ public class MultiLinkedListTokoOlahraga {
         ProductNode currentProduct = productHead;
         while (currentProduct != null) {
             if (currentProduct.kategori == kategori) {
-                return true; // Kategori ditemukan terkait dengan produk
+                return true;
             }
             currentProduct = currentProduct.next;
         }
-        return false; // Tidak ada produk yang terkait dengan kategori ini
+        return false;
     }
 
     private static void editKategori(Scanner scanner) {
@@ -409,7 +428,7 @@ public class MultiLinkedListTokoOlahraga {
 
         System.out.print("Pilih nomor Kategori yang ingin diedit: ");
         int index = scanner.nextInt();
-        scanner.nextLine(); // Consume newline
+        scanner.nextLine();
 
         KategoriNode kategori = getKategoriByIndex(index);
         if (kategori == null) {
@@ -439,16 +458,11 @@ public class MultiLinkedListTokoOlahraga {
     private static void viewKategori() {
         System.out.println("\nDaftar Kategori:");
 
-        // Jika tidak ada kategori
         if (kategoriHead == null) {
             System.out.println("Tidak ada kategori yang tersedia.");
             return;
         }
 
-        // Urutkan linked list berdasarkan ID
-        kategoriHead = sortCategoriesById(kategoriHead);
-
-        // Urutkan linked list berdasarkan ID
         kategoriHead = sortCategoriesById(kategoriHead);
         KategoriNode current = kategoriHead;
         int index = 1;
@@ -459,11 +473,9 @@ public class MultiLinkedListTokoOlahraga {
         }
     }
 
-    // Fungsi untuk mengurutkan kategori berdasarkan ID (Bubble Sort untuk linked
-    // list)
     private static KategoriNode sortCategoriesById(KategoriNode head) {
         if (head == null || head.next == null) {
-            return head; // Tidak perlu diurutkan jika hanya ada satu node atau tidak ada node
+            return head;
         }
 
         boolean swapped;
@@ -474,13 +486,12 @@ public class MultiLinkedListTokoOlahraga {
 
             while (current != null && current.next != null) {
                 if (current.id > current.next.id) {
-                    // Tukar node
                     KategoriNode temp = current.next;
                     current.next = temp.next;
                     temp.next = current;
 
                     if (prev == null) {
-                        head = temp; // Perbarui head jika pertukaran terjadi di awal
+                        head = temp;
                     } else {
                         prev.next = temp;
                     }
@@ -529,14 +540,14 @@ public class MultiLinkedListTokoOlahraga {
             System.out.println("3. Keluar");
             System.out.print("Pilih menu: ");
 
-            if (!scanner.hasNextInt()) { // Jika input bukan angka
+            if (!scanner.hasNextInt()) {
                 System.out.println("Input tidak valid. Harap masukkan angka.");
-                scanner.nextLine(); // Konsumsi input yang salah
-                continue; // Kembali ke menu
+                scanner.nextLine();
+                continue;
             }
 
             int choice = scanner.nextInt();
-            scanner.nextLine(); // Consume newline
+            scanner.nextLine();
 
             switch (choice) {
                 case 1:
@@ -565,14 +576,14 @@ public class MultiLinkedListTokoOlahraga {
             System.out.println("5. Keluar");
             System.out.print("Pilih menu: ");
 
-            if (!scanner.hasNextInt()) { // Jika input bukan angka
+            if (!scanner.hasNextInt()) {
                 System.out.println("Input tidak valid. Harap masukkan angka.");
-                scanner.nextLine(); // Konsumsi input yang salah
-                continue; // Kembali ke menu
+                scanner.nextLine();
+                continue;
             }
 
             int choice = scanner.nextInt();
-            scanner.nextLine(); // Consume newline
+            scanner.nextLine();
 
             switch (choice) {
                 case 1:
@@ -615,12 +626,11 @@ public class MultiLinkedListTokoOlahraga {
         int kategoriIndex = -1;
         KategoriNode kategori = null;
 
-        // Loop untuk memastikan input ID kategori valid
         while (kategori == null) {
             System.out.print("Masukkan ID Kategori: ");
             if (scanner.hasNextInt()) {
                 kategoriIndex = scanner.nextInt();
-                scanner.nextLine(); // Consume newline
+                scanner.nextLine();
                 kategori = getKategoriByIndex(kategoriIndex);
 
                 if (kategori == null) {
@@ -628,13 +638,12 @@ public class MultiLinkedListTokoOlahraga {
                 }
             } else {
                 System.out.println("Input harus berupa angka! Silakan coba lagi.");
-                scanner.nextLine(); // Consume invalid input
+                scanner.nextLine();
             }
         }
 
         ProductNode newProduct = new ProductNode(name, price, stock, kategori);
 
-        // Tambahkan produk di awal linked list
         newProduct.next = productHead;
         productHead = newProduct;
 
@@ -649,12 +658,11 @@ public class MultiLinkedListTokoOlahraga {
         int index = -1;
         ProductNode product = null;
 
-        // Loop untuk validasi indeks produk
         while (product == null) {
             System.out.print("Pilih nomor produk untuk menambahkan stok: ");
             if (scanner.hasNextInt()) {
                 index = scanner.nextInt();
-                scanner.nextLine(); // Konsumsi newline
+                scanner.nextLine();
 
                 if (index < 1) {
                     System.out.println("Indeks tidak valid. Masukkan nomor produk yang benar.");
@@ -666,7 +674,7 @@ public class MultiLinkedListTokoOlahraga {
                 }
             } else {
                 System.out.println("Input harus berupa angka! Silakan coba lagi.");
-                scanner.nextLine(); // Konsumsi input yang salah
+                scanner.nextLine();
             }
         }
 
@@ -674,23 +682,21 @@ public class MultiLinkedListTokoOlahraga {
 
         int stokTambah = -1;
 
-        // Loop untuk validasi jumlah stok
         while (stokTambah <= 0) {
             System.out.print("Masukkan jumlah stok yang ingin ditambahkan: ");
             if (scanner.hasNextInt()) {
                 stokTambah = scanner.nextInt();
-                scanner.nextLine(); // Konsumsi newline
+                scanner.nextLine();
 
                 if (stokTambah <= 0) {
                     System.out.println("Jumlah stok harus lebih dari 0. Silakan coba lagi.");
                 }
             } else {
                 System.out.println("Input harus berupa angka! Silakan coba lagi.");
-                scanner.nextLine(); // Konsumsi input yang salah
+                scanner.nextLine();
             }
         }
 
-        // Tambahkan stok
         int stokAwal = product.stock;
         product.stock += stokTambah;
         System.out.println("Stok berhasil ditambahkan.");
@@ -706,12 +712,11 @@ public class MultiLinkedListTokoOlahraga {
         ProductNode product = null;
         int index = -1;
 
-        // Validasi input untuk indeks produk
         while (product == null) {
             System.out.print("Pilih nomor produk yang ingin diedit: ");
             if (scanner.hasNextInt()) {
                 index = scanner.nextInt();
-                scanner.nextLine(); // Konsumsi newline
+                scanner.nextLine();
 
                 if (index < 1) {
                     System.out.println("Nomor produk tidak valid. Masukkan nomor produk yang benar.");
@@ -723,26 +728,24 @@ public class MultiLinkedListTokoOlahraga {
                 }
             } else {
                 System.out.println("Input harus berupa angka! Silakan coba lagi.");
-                scanner.nextLine(); // Konsumsi input yang salah
+                scanner.nextLine();
             }
         }
 
         System.out.println("Produk yang dipilih: " + product);
 
-        // Edit nama produk
         System.out.print("Masukkan nama baru produk (kosong untuk tidak mengubah): ");
         String name = scanner.nextLine();
         if (!name.isEmpty()) {
             product.name = name;
         }
 
-        // Edit harga produk
         double price = -1;
         while (price < 0) {
             System.out.print("Masukkan harga baru produk (0 untuk tidak mengubah): ");
             if (scanner.hasNextDouble()) {
                 price = scanner.nextDouble();
-                scanner.nextLine(); // Konsumsi newline
+                scanner.nextLine();
                 if (price > 0) {
                     product.price = price;
                 } else if (price < 0) {
@@ -750,17 +753,16 @@ public class MultiLinkedListTokoOlahraga {
                 }
             } else {
                 System.out.println("Input harus berupa angka! Silakan coba lagi.");
-                scanner.nextLine(); // Konsumsi input yang salah
+                scanner.nextLine();
             }
         }
 
-        // Edit stok produk
-        int stock = -2; // -2 digunakan sebagai nilai awal invalid
+        int stock = -2;
         while (stock < -1) {
             System.out.print("Masukkan stok baru produk (-1 untuk tidak mengubah): ");
             if (scanner.hasNextInt()) {
                 stock = scanner.nextInt();
-                scanner.nextLine(); // Konsumsi newline
+                scanner.nextLine();
                 if (stock >= 0) {
                     product.stock = stock;
                 } else if (stock == -1) {
@@ -770,11 +772,10 @@ public class MultiLinkedListTokoOlahraga {
                 }
             } else {
                 System.out.println("Input harus berupa angka! Silakan coba lagi.");
-                scanner.nextLine(); // Konsumsi input yang salah
+                scanner.nextLine();
             }
         }
 
-        // Edit kategori produk
         int kategoriIndex = -1;
         while (kategoriIndex < 0) {
             System.out.println("Pilih kategori baru untuk produk (0 untuk tidak mengubah):");
@@ -782,28 +783,27 @@ public class MultiLinkedListTokoOlahraga {
             System.out.print("Masukkan nomor kategori: ");
             if (scanner.hasNextInt()) {
                 kategoriIndex = scanner.nextInt();
-                scanner.nextLine(); // Konsumsi newline
+                scanner.nextLine();
                 if (kategoriIndex == 0) {
-                    break; // Tidak mengubah kategori
+                    break;
                 } else {
                     KategoriNode kategori = getKategoriByIndex(kategoriIndex);
                     if (kategori != null) {
                         product.kategori = kategori;
                     } else {
                         System.out.println("Kategori tidak valid. Silakan coba lagi.");
-                        kategoriIndex = -1; // Reset untuk memaksa ulang
+                        kategoriIndex = -1;
                     }
                 }
             } else {
                 System.out.println("Input harus berupa angka! Silakan coba lagi.");
-                scanner.nextLine(); // Konsumsi input yang salah
+                scanner.nextLine();
             }
         }
 
         System.out.println("Produk berhasil diperbarui.");
     }
 
-    // Fungsi tambahan untuk mendapatkan produk berdasarkan nomor urut
     private static ProductNode getProductByIndex(int index) {
         ProductNode current = productHead;
         int count = 1;
@@ -820,15 +820,14 @@ public class MultiLinkedListTokoOlahraga {
     private static ProductNode getProductByName(String productName) {
         ProductNode current = productHead;
 
-        // Traverse linked list to find the product with the given name
         while (current != null) {
             if (current.name.equalsIgnoreCase(productName)) {
-                return current; // Return the product if found
+                return current;
             }
             current = current.next;
         }
 
-        return null; // Return null if not found
+        return null;
     }
 
     private static double getProductPriceByName(String productName) {
@@ -839,7 +838,7 @@ public class MultiLinkedListTokoOlahraga {
             }
             current = current.next;
         }
-        return 0; // Jika produk tidak ditemukan
+        return 0;
     }
 
     private static void deleteProduct(Scanner scanner) {
@@ -855,15 +854,13 @@ public class MultiLinkedListTokoOlahraga {
             return;
         }
 
-        // Jika daftar produk kosong
         if (productHead == null) {
             System.out.println("Tidak ada produk untuk dihapus.");
             return;
         }
 
-        // Jika ingin menghapus produk pertama (head)
         if (index == 1) {
-            productHead = productHead.next; // Hapus head
+            productHead = productHead.next;
             System.out.println("Produk berhasil dihapus.");
             return;
         }
@@ -871,15 +868,13 @@ public class MultiLinkedListTokoOlahraga {
         ProductNode current = productHead;
         int count = 1;
 
-        // Cari node sebelum node yang ingin dihapus
         while (current != null && count < index - 1) {
             current = current.next;
             count++;
         }
 
-        // Validasi apakah node berikutnya ada
         if (current != null && current.next != null) {
-            current.next = current.next.next; // Hapus node
+            current.next = current.next.next;
             System.out.println("Produk berhasil dihapus.");
         } else {
             System.out.println("Produk tidak ditemukan.");
@@ -897,7 +892,7 @@ public class MultiLinkedListTokoOlahraga {
             viewProducts(false);
             System.out.print("Pilih nomor produk (0 untuk selesai): ");
             int index = scanner.nextInt();
-            scanner.nextLine(); // Konsumsi newline
+            scanner.nextLine();
 
             if (index == 0) {
                 shopping = false;
@@ -907,7 +902,7 @@ public class MultiLinkedListTokoOlahraga {
                 if (product != null && product.stock > 0) {
                     System.out.print("Masukkan jumlah: ");
                     int quantity = scanner.nextInt();
-                    scanner.nextLine(); // Konsumsi newline
+                    scanner.nextLine();
 
                     if (quantity > product.stock) {
                         System.out.println("Stok tidak cukup!");
@@ -973,7 +968,7 @@ public class MultiLinkedListTokoOlahraga {
             viewProducts(true);
             System.out.print("Pilih nomor produk untuk disewa (0 untuk selesai): ");
             int index = scanner.nextInt();
-            scanner.nextLine(); // Consume newline
+            scanner.nextLine();
 
             if (index == 0) {
                 renting = false;
@@ -1003,6 +998,8 @@ public class MultiLinkedListTokoOlahraga {
                             cartTail.next = cartItem;
                             cartTail = cartItem;
                         }
+
+                        transaction.productPrice.put(product.name, product.price);
 
                         transaction.quantities.put(product.name, quantity);
                         product.stock -= quantity;
@@ -1051,7 +1048,6 @@ public class MultiLinkedListTokoOlahraga {
         List<String> rentedProducts = new ArrayList<>();
         boolean hasRentals = false;
 
-        // Tampilkan daftar produk yang disewa
         while (currentTransaction != null) {
             if (currentTransaction.type.equals("rental") && !currentTransaction.isReturned) {
                 for (String productName : currentTransaction.quantities.keySet()) {
@@ -1071,9 +1067,8 @@ public class MultiLinkedListTokoOlahraga {
 
         System.out.print("Pilih nomor produk yang ingin dikembalikan: ");
         int productIndex = scanner.nextInt();
-        scanner.nextLine(); // Konsumsi newline
+        scanner.nextLine();
 
-        // Validasi pilihan
         if (productIndex < 1 || productIndex > rentedProducts.size()) {
             System.out.println("Pilihan tidak valid.");
             return;
@@ -1081,7 +1076,6 @@ public class MultiLinkedListTokoOlahraga {
 
         String selectedProductName = rentedProducts.get(productIndex - 1);
 
-        // Cari transaksi yang mengandung produk tersebut
         currentTransaction = user.transactionHead;
         while (currentTransaction != null) {
             if (currentTransaction.type.equals("rental")
@@ -1089,10 +1083,10 @@ public class MultiLinkedListTokoOlahraga {
                 ProductNode product = getProductByName(selectedProductName);
                 if (product != null) {
                     int quantity = currentTransaction.quantities.get(selectedProductName);
-                    product.stock += quantity; // Tambahkan kembali stok produk
+                    product.stock += quantity;
 
                     currentTransaction.isReturned = true;
-                    currentTransaction.returnDate = new Date(); // Catat tanggal pengembalian
+                    currentTransaction.returnDate = new Date();
                     System.out.println(product.name + " x" + quantity + " berhasil dikembalikan.");
                     return;
                 }
@@ -1101,6 +1095,31 @@ public class MultiLinkedListTokoOlahraga {
         }
 
         System.out.println("Produk tidak ditemukan dalam penyewaan Anda.");
+    }
+
+    private static void manageAllRentals(Scanner scanner) {
+        System.out.println("\nDaftar Semua Penyewaan:");
+        boolean hasRentals = false;
+
+        UserNode currentUser = userHead; // Iterasi melalui semua user
+        while (currentUser != null) {
+            TransactionNode currentTransaction = currentUser.transactionHead; // Iterasi transaksi per user
+            while (currentTransaction != null) {
+                if ("rental".equals(currentTransaction.type) && !currentTransaction.isReturned) {
+                    System.out.printf("User: %s\n", currentUser.username);
+                    for (Map.Entry<String, Integer> entry : currentTransaction.quantities.entrySet()) {
+                        System.out.printf("   - %s x%d\n", entry.getKey(), entry.getValue());
+                    }
+                    hasRentals = true;
+                }
+                currentTransaction = currentTransaction.next;
+            }
+            currentUser = currentUser.next;
+        }
+
+        if (!hasRentals) {
+            System.out.println("Tidak ada barang yang sedang disewa.");
+        }
     }
 
     private static void viewAllUsers() {
@@ -1118,20 +1137,17 @@ public class MultiLinkedListTokoOlahraga {
         while (current != null) {
             System.out.printf("Jenis Transaksi: %s\n", current.type);
 
-            // Tampilkan detail produk dalam transaksi
             current.quantities.forEach((productName, quantity) -> {
-                double productPrice = getProductPriceByName(productName); // Ambil harga produk
-                double productTotal = productPrice * quantity; // Hitung total harga produk
+                double productPrice = getProductPriceByName(productName);
+                double productTotal = productPrice * quantity;
                 System.out.printf("Produk: %s, Jumlah: %d, Harga Satuan: Rp%,.2f, Harga Total: Rp%,.2f%n",
                         productName, quantity, productPrice, productTotal);
             });
 
-            // Hitung total transaksi, pembayaran, dan kembalian
-            double totalAmount = current.getTotalAmount(); // Total transaksi
+            double totalAmount = current.getTotalAmount();
             System.out.printf("Total: Rp%,.2f, Dibayar: Rp%,.2f, Kembalian: Rp%,.2f\n",
                     totalAmount, current.paidAmount, current.change);
 
-            // Tampilkan status pengembalian untuk rental
             if (current.type.equals("rental")) {
                 String status = current.isReturned ? "Sudah Dikembalikan" : "Belum Dikembalikan";
                 System.out.println("Status: " + status);
@@ -1140,40 +1156,11 @@ public class MultiLinkedListTokoOlahraga {
                 }
             }
 
-            current = current.next; // Lanjut ke transaksi berikutnya
+            current = current.next;
+            System.out.println("________________________________________");
+            System.out.println();
         }
     }
-
-    // private static void viewTransactions(UserNode user) {
-    // System.out.println("\nDaftar Transaksi Anda:");
-    // TransactionNode current = user.transactionHead;
-
-    // while (current != null) {
-    // System.out.println("Jenis Transaksi: " + current.type);
-    // ProductNode product = current.productHead;
-
-    // while (product != null) {
-    // int quantity = current.quantities.getOrDefault(product.name, 0);
-    // double itemPrice = product.price * (current.type.equals("rental") ? 0.2 :
-    // 1.0);
-    // itemPrice *= (current.type.equals("rental") ? current.duration : 1);
-
-    // System.out.printf("Produk: %s, Jumlah: %d, Harga Total: Rp%,.2f%n",
-    // product.name, quantity, itemPrice * quantity);
-
-    // product = product.next;
-    // }
-
-    // System.out.printf("Total: Rp%,.2f, Dibayar: Rp%,.2f, Kembalian: Rp%,.2f%n",
-    // current.getTotalAmount(), current.paidAmount, current.changeAmount);
-
-    // if (current.returnDate != null) {
-    // System.out.println("Tanggal Pengembalian: " + current.returnDate);
-    // }
-    // System.out.println("--------------------------------");
-    // current = current.next;
-    // }
-    // }
 
     private static void viewAllTransactions() {
         System.out.println("\nDaftar Semua Transaksi:");
@@ -1186,6 +1173,8 @@ public class MultiLinkedListTokoOlahraga {
                 currentTransaction = currentTransaction.next;
             }
             currentUser = currentUser.next;
+            System.out.println("________________________________________");
+            System.out.println();
         }
     }
 }
