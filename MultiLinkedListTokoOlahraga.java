@@ -45,6 +45,7 @@ class TransactionNode {
     ProductNode productHead; // Barang di transaksi
     Map<String, Integer> quantities;
     Map<String, Double> productPrice;
+    Map<String, Boolean> returnedStatus;
     TransactionNode next;
     double payment, paidAmount;
     double change, changeAmount;
@@ -58,6 +59,7 @@ class TransactionNode {
         this.type = type;
         this.quantities = new HashMap<>();
         this.productPrice = new HashMap<>();
+        this.returnedStatus = new HashMap<>();
     }
 
     public double getTotalAmount() {
@@ -830,20 +832,20 @@ public class MultiLinkedListTokoOlahraga {
         return null;
     }
 
-    private static double getProductPriceByName(String productName) {
-        ProductNode current = productHead;
-        while (current != null) {
-            if (current.name.equals(productName)) {
-                return current.price;
-            }
-            current = current.next;
-        }
-        return 0;
-    }
+    // private static double getProductPriceByName(String productName) {
+    // ProductNode current = productHead;
+    // while (current != null) {
+    // if (current.name.equals(productName)) {
+    // return current.price;
+    // }
+    // current = current.next;
+    // }
+    // return 0;
+    // }
 
     private static void deleteProduct(Scanner scanner) {
         System.out.println("\n=== Hapus Produk ===");
-        viewProducts(true);
+        viewProducts(false);
 
         System.out.print("Pilih nomor produk yang ingin dihapus: ");
         int index = scanner.nextInt();
@@ -854,31 +856,58 @@ public class MultiLinkedListTokoOlahraga {
             return;
         }
 
-        if (productHead == null) {
-            System.out.println("Tidak ada produk untuk dihapus.");
-            return;
-        }
-
-        if (index == 1) {
-            productHead = productHead.next;
-            System.out.println("Produk berhasil dihapus.");
-            return;
-        }
-
-        ProductNode current = productHead;
-        int count = 1;
-
-        while (current != null && count < index - 1) {
-            current = current.next;
-            count++;
-        }
-
-        if (current != null && current.next != null) {
-            current.next = current.next.next;
-            System.out.println("Produk berhasil dihapus.");
-        } else {
+        ProductNode productToDelete = getProductByIndex(index);
+        if (productToDelete == null) {
             System.out.println("Produk tidak ditemukan.");
+            return;
         }
+
+        // Validasi apakah produk sedang disewa
+        if (isProductRented(productToDelete.name)) {
+            System.out.println("Produk sedang disewa oleh pengguna dan tidak dapat dihapus.");
+            return;
+        }
+
+        if (index == 1) { // Jika produk yang dihapus adalah head
+            productHead = productHead.next;
+        } else {
+            ProductNode current = productHead;
+            int count = 1;
+            while (current != null && count < index - 1) {
+                current = current.next;
+                count++;
+            }
+
+            if (current != null && current.next != null) {
+                current.next = current.next.next;
+            } else {
+                System.out.println("Produk tidak ditemukan.");
+                return;
+            }
+        }
+
+        System.out.println("Produk berhasil dihapus.");
+    }
+
+    private static boolean isProductRented(String productName) {
+        UserNode currentUser = userHead;
+
+        while (currentUser != null) {
+            TransactionNode currentTransaction = currentUser.transactionHead;
+
+            while (currentTransaction != null) {
+                if (currentTransaction.type.equals("rental") && !currentTransaction.isReturned) {
+                    if (currentTransaction.quantities.containsKey(productName)) {
+                        return true; // Produk sedang disewa
+                    }
+                }
+                currentTransaction = currentTransaction.next;
+            }
+
+            currentUser = currentUser.next;
+        }
+
+        return false; // Tidak ditemukan dalam transaksi rental
     }
 
     private static void purchaseProducts(Scanner scanner, UserNode user) {
@@ -1046,16 +1075,20 @@ public class MultiLinkedListTokoOlahraga {
         System.out.println("\nDaftar Penyewaan:");
         TransactionNode currentTransaction = user.transactionHead;
         List<String> rentedProducts = new ArrayList<>();
+        Map<String, TransactionNode> productToTransactionMap = new HashMap<>();
         boolean hasRentals = false;
 
+        // mengiterasi untuk mengumpulkan produk yang disewa
         while (currentTransaction != null) {
             if (currentTransaction.type.equals("rental") && !currentTransaction.isReturned) {
-                for (String productName : currentTransaction.quantities.keySet()) {
-                    rentedProducts.add(productName);
-                    int quantity = currentTransaction.quantities.get(productName);
-                    System.out.printf("%d. %s x%d%n", rentedProducts.size(), productName, quantity);
+                for (Map.Entry<String, Integer> entry : currentTransaction.quantities.entrySet()) {
+                    String productName = entry.getKey();
+                    if (!currentTransaction.returnedStatus.getOrDefault(productName, false)) {
+                        rentedProducts.add(productName);
+                        productToTransactionMap.put(productName, currentTransaction);
+                        hasRentals = true;
+                    }
                 }
-                hasRentals = true;
             }
             currentTransaction = currentTransaction.next;
         }
@@ -1063,6 +1096,12 @@ public class MultiLinkedListTokoOlahraga {
         if (!hasRentals) {
             System.out.println("Tidak ada barang yang sedang disewa.");
             return;
+        }
+
+        for (int i = 0; i < rentedProducts.size(); i++) {
+            String productName = rentedProducts.get(i);
+            int quantity = productToTransactionMap.get(productName).quantities.get(productName);
+            System.out.printf("%d. %s x%d%n", i + 1, productName, quantity);
         }
 
         System.out.print("Pilih nomor produk yang ingin dikembalikan: ");
@@ -1075,26 +1114,25 @@ public class MultiLinkedListTokoOlahraga {
         }
 
         String selectedProductName = rentedProducts.get(productIndex - 1);
+        TransactionNode transaction = productToTransactionMap.get(selectedProductName);
 
-        currentTransaction = user.transactionHead;
-        while (currentTransaction != null) {
-            if (currentTransaction.type.equals("rental")
-                    && currentTransaction.quantities.containsKey(selectedProductName)) {
-                ProductNode product = getProductByName(selectedProductName);
-                if (product != null) {
-                    int quantity = currentTransaction.quantities.get(selectedProductName);
-                    product.stock += quantity;
+        if (transaction != null) {
+            int quantity = transaction.quantities.get(selectedProductName);
 
-                    currentTransaction.isReturned = true;
-                    currentTransaction.returnDate = new Date();
-                    System.out.println(product.name + " x" + quantity + " berhasil dikembalikan.");
-                    return;
-                }
+            // mengembalikan stok produk
+            ProductNode product = getProductByName(selectedProductName);
+            if (product != null) {
+                product.stock += quantity;
             }
-            currentTransaction = currentTransaction.next;
-        }
 
-        System.out.println("Produk tidak ditemukan dalam penyewaan Anda.");
+            // merubah status barang
+            transaction.returnedStatus.put(selectedProductName, true);
+            transaction.returnDate = new Date();
+
+            System.out.printf("%s x%d berhasil dikembalikan.%n", selectedProductName, quantity);
+        } else {
+            System.out.println("Produk tidak ditemukan dalam penyewaan Anda.");
+        }
     }
 
     private static void manageAllRentals(Scanner scanner) {
@@ -1135,26 +1173,30 @@ public class MultiLinkedListTokoOlahraga {
         System.out.println("\nDaftar Transaksi Anda:");
         TransactionNode current = user.transactionHead;
         while (current != null) {
+            final TransactionNode transaction = current;
             System.out.printf("Jenis Transaksi: %s\n", current.type);
 
             current.quantities.forEach((productName, quantity) -> {
-                double productPrice = getProductPriceByName(productName);
+                double productPrice = transaction.productPrice.getOrDefault(productName, 0.0);
                 double productTotal = productPrice * quantity;
-                System.out.printf("Produk: %s, Jumlah: %d, Harga Satuan: Rp%,.2f, Harga Total: Rp%,.2f%n",
-                        productName, quantity, productPrice, productTotal);
+                boolean isReturned = transaction.returnedStatus.getOrDefault(productName, false);
+                String status = isReturned ? "Sudah Dikembalikan" : "Belum Dikembalikan";
+                System.out.printf("Produk: %s, Jumlah: %d, Harga Satuan: Rp%,.2f, Total: Rp%,.2f, Status: %s%n",
+                        productName, quantity, productPrice, productTotal, status);
             });
 
             double totalAmount = current.getTotalAmount();
             System.out.printf("Total: Rp%,.2f, Dibayar: Rp%,.2f, Kembalian: Rp%,.2f\n",
                     totalAmount, current.paidAmount, current.change);
 
-            if (current.type.equals("rental")) {
-                String status = current.isReturned ? "Sudah Dikembalikan" : "Belum Dikembalikan";
-                System.out.println("Status: " + status);
-                if (current.returnDate != null) {
-                    System.out.println("Tanggal Pengembalian: " + current.returnDate);
-                }
-            }
+            // if (current.type.equals("rental")) {
+            // String status = current.isReturned ? "Sudah Dikembalikan" : "Belum
+            // Dikembalikan";
+            // System.out.println("Status: " + status);
+            // if (current.returnDate != null) {
+            // System.out.println("Tanggal Pengembalian: " + current.returnDate);
+            // }
+            // }
 
             current = current.next;
             System.out.println("________________________________________");
@@ -1165,15 +1207,49 @@ public class MultiLinkedListTokoOlahraga {
     private static void viewAllTransactions() {
         System.out.println("\nDaftar Semua Transaksi:");
         UserNode currentUser = userHead;
+
         while (currentUser != null) {
             System.out.println("Transaksi untuk: " + currentUser.username);
             TransactionNode currentTransaction = currentUser.transactionHead;
+
             while (currentTransaction != null) {
-                System.out.println(currentTransaction);
+                final TransactionNode transaction = currentTransaction;
+                System.out.println("====================================");
+                System.out.println("Jenis Transaksi: " + currentTransaction.type);
+                System.out.println("Tanggal Transaksi: " + currentTransaction.date);
+
+                // salinan sementara untuk digunakan dalam lambda
+                Map<String, Integer> quantities = currentTransaction.quantities;
+                Map<String, Double> productPrices = currentTransaction.productPrice;
+
+                quantities.forEach((productName, quantity) -> {
+                    double productPrice = productPrices.getOrDefault(productName, 0.0);
+                    double total = productPrice * quantity;
+                    boolean isReturned = transaction.returnedStatus.getOrDefault(productName, false);
+                    String status = isReturned ? "Sudah Dikembalikan" : "Belum Dikembalikan";
+
+                    System.out.printf("Produk: %s, Jumlah: %d, Harga Satuan: Rp%,.2f, Total: Rp%,.2f, Status: %s%n",
+                            productName, quantity, productPrice, total, status);
+                });
+
+                System.out.printf("Total Transaksi: Rp%,.2f%n", currentTransaction.getTotalAmount());
+
+                if (currentTransaction.type.equals("purchase")) {
+                    System.out.printf("Dibayar: Rp%,.2f, Kembalian: Rp%,.2f%n",
+                            currentTransaction.paidAmount, currentTransaction.change);
+                } else if (currentTransaction.type.equals("rental")) {
+                    String status = currentTransaction.isReturned ? "Sudah Dikembalikan" : "Belum Dikembalikan";
+                    System.out.printf("Durasi Sewa: %d hari%n", currentTransaction.duration);
+                    System.out.println("Status: " + status);
+                    if (currentTransaction.returnDate != null) {
+                        System.out.println("Tanggal Pengembalian: " + currentTransaction.returnDate);
+                    }
+                }
+
+                System.out.println("====================================");
                 currentTransaction = currentTransaction.next;
             }
             currentUser = currentUser.next;
-            System.out.println("________________________________________");
             System.out.println();
         }
     }
